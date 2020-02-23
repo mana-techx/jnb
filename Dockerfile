@@ -1,6 +1,6 @@
 FROM jupyter/scipy-notebook:latest
 
-# Environment variables and args
+# Install .NET CLI dependencies
 
 ARG NB_USER=jovyan
 ARG NB_UID=1000
@@ -11,12 +11,7 @@ ENV HOME /home/${NB_USER}
 WORKDIR ${HOME}
 
 USER root
-# Downloads the package lists from the repositories and "updates" them 
-# to get information on the newest versions of packages and their dependencies.
 RUN apt-get update
-
-# Install 'curl': Command line tool that allows you to transfer data from or to a remote server. 
-# With curl, you can download or upload data using HTTP, HTTPS, SCP, SFTP, and FTP.
 RUN apt-get install -y curl
 
 # Install .NET CLI dependencies
@@ -47,14 +42,16 @@ ENV DOTNET_RUNNING_IN_CONTAINER=true \
     # Enable correct mode for dotnet watch (only mode supported in a container)
     DOTNET_USE_POLLING_FILE_WATCHER=true \
     # Skip extraction of XML docs - generally not useful within an image/container - helps performance
-    NUGET_XMLDOC_MODE=skip
+    NUGET_XMLDOC_MODE=skip \
+    # Opt out of telemetry until after we install jupyter when building the image, this prevents caching of machine id
+    DOTNET_TRY_CLI_TELEMETRY_OPTOUT=true
 
 # Trigger first run experience by running arbitrary cmd
 RUN dotnet help
 
 # Copy notebooks
 
-COPY ./NotebookExamples/ ${HOME}/Notebooks/
+COPY ./notebooks/ ${HOME}/Notebooks/
 
 # Copy package sources
 
@@ -64,21 +61,16 @@ RUN chown -R ${NB_UID} ${HOME}
 USER ${USER}
 
 # Install Microsoft.DotNet.Interactive
-#RUN dotnet tool install -g dotnet-try --add-source "https://dotnet.myget.org/F/dotnet-try/api/v3/index.json"
-RUN dotnet tool install -g dotnet-try
-
-
+RUN dotnet tool install -g dotnet-try --version "1.0.19569.5" --add-source "https://dotnet.myget.org/F/dotnet-try/api/v3/index.json"
 
 ENV PATH="${PATH}:${HOME}/.dotnet/tools"
 RUN echo "$PATH"
 
-#Check to see if Jupyter is installed
-RUN jupyter kernelspec list
-
-
 # Install kernel specs
 RUN dotnet try jupyter install
 
+# Enable telemetry once we install jupyter for the image
+ENV DOTNET_TRY_CLI_TELEMETRY_OPTOUT=false
 
 # Set root to Notebooks
 WORKDIR ${HOME}/Notebooks/
