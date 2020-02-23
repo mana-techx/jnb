@@ -69,6 +69,10 @@ RUN dotnet tool install -g dotnet-try --add-source "https://dotnet.myget.org/F/d
 ENV PATH="${PATH}:${HOME}/.dotnet/tools"
 RUN echo "$PATH"
 
+#Check to see if Jupyter is installed
+RUN jupyter kernelspec list
+
+
 # Install kernel specs
 RUN dotnet try jupyter install
 
